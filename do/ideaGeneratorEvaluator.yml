@@ -1,0 +1,396 @@
+version: 0.5
+nodes:
+  # 最初のプロンプト
+  First_prompt:
+    agent: stringTemplateAgent
+    params:
+      template: "\e[32mAI\e[0m: 相談事は何ですか？"
+    console:
+      after: true
+  
+  nestedsuggestIdea:
+    agent: "mapAgent"
+    inputs:
+      rows: [:First_prompt]
+    graph:
+      version: 0.5
+      loop:
+        while: :continue
+      nodes:
+        # 繰り返し定義
+        continue:
+          value: true
+          # update: :llm.choices.$0.message.content
+          update: :loopCheck.continue
+        # 最終結果の出力（nestedsuggestIdeaの結果出力なのでisResult: true）
+        information:
+          value: {}
+          update: :argumentsParser
+          isResult: true
+        # メッセージ
+        messages:
+          value:
+            - role: system
+              content: >
+                私はあなたに私のPromptエンジニアになってもらいたいと思っています。
+                あなたの目標は私が必要とする最高のPromptを作ることを手助けすることです。
+                Promptはあなた、ChatGPTによって使用されます。以下のプロセスに従ってください。
+
+                あなたの最初の反応は、Promptが何についてであるべきかを尋ねることです。
+                私は答えを提供しますが、次のステップを繰り返すことで改善する必要があります。
+
+                私の入力に基づいて、2つのセクションを生成します。
+                a）改訂されたPrompt（あなたが書き直したPromptを提供してください。それは明確で簡潔で、
+                あなたによって簡単に理解できるものである必要があります）
+                b）質問（Promptを改善するために私から必要な追加情報に関する関連する質問をしてください）
+
+                私が言うまで、あなたが追加情報を提供し、
+                改訂PromptセクションでPromptを更新するという反復プロセスを続けます。
+                その際、英語で考えて、すべて日本語で出力してください。
+                ステップバイステップで考えてください。
+                私が完成したと言うまで続けます。
+
+                「完成した」場合、、関数 'report' を呼び出してください。
+
+          update: :reducer
+        userInput:
+          agent: textInputAgent
+          params:
+            message: "あなた:"
+        userMessage:
+          agent: propertyFilterAgent
+          params:
+            inject:
+              - propId: content
+                from: 1
+          inputs:
+            - role: user
+            - :userInput
+        appendedMessages:
+          agent: pushAgent
+          inputs:
+            array: :messages
+            item: :userMessage
+        
+        # LLM
+        llm:
+          # agent: groqAgent
+          # params:
+          #   model: gemma2-9b-it
+          #   model: Llama3-70b-8192
+          agent: openAIAgent
+          params:
+            # model: gpt-4o
+            model: gpt-4o-mini
+            tools:
+              - type: function
+                function:
+                  name: report
+                  description: 
+                    ユーザーから取得した情報を報告してください。すべて日本語になっていること。
+                  parameters:
+                    type: object
+                    properties:
+                      myPrompt:
+                        type: string
+                        description: プロンプト
+                    required:
+                      - myPrompt
+          inputs:
+            messages: :appendedMessages
+
+        # LLMの結果を配列に入れる
+        reducer:
+          agent: pushAgent
+          inputs:
+            array: :appendedMessages
+            item: :llm.choices.$0.message
+
+        # LLMの結果を画面に返却
+        output:
+          agent: stringTemplateAgent
+          params:
+            template: "\e[32mAI\e[0m: ${0}\n"
+          console:
+            after: true
+          inputs:
+            - :llm.choices.$0.message.content
+          if: :llm.choices.$0.message.content
+
+        # 結果に対してLLMで情報追加
+        # ★★★「最後に本会話は終了させてください」が重要。そうしないと会話続けてしまってエラーとなる
+        # "An assistant message with 'tool_calls' must be followed by tool messages responding to each 'tool_call_id'.
+        # ↑後で分かったことだが「LLMの回答（Contents）とtool_call回答の両方が入る」ことがある。その場合に上記エラーとなる。
+        # 対策として、ループ判定を「:llm.choices.$0.message.content」⇒「loopCheck」の通りに修正した
+        meaning_llm:
+          # agent: groqAgent
+          # params:
+          #   model: gemma2-9b-it        
+          agent: openAIAgent
+          params:
+            model: gpt-4o-mini
+            system: >
+              あなたはプロのプロンプト作成者です。
+              このプロンプトをレビューし最適化し、結果だけを返却してください。
+          inputs:
+            prompt: :llm.choices.$0.message.tool_calls.$0.function.arguments
+          if: :llm.choices.$0.message.tool_calls
+
+        # Json形式だと「nestedsuggestIdea_result」で出力できないので
+        # いったんcopyAgentを使う
+        argumentsParser:
+          # agent: jsonParserAgent
+          agent: copyAgent
+          inputs:
+            - :llm.choices.$0.message.tool_calls.$0.function.arguments
+            # - :meaning_llm.choices.$0.message.content
+          if: :llm.choices.$0.message.tool_calls
+          # if: :meaning_llm.choices.$0.message.content
+
+        # llmのfinish_reasonを確認。tool_calls以外は「stop」となる。
+        # よって、stopの時にループする
+        loopCheck:
+          agent: propertyFilterAgent
+          params:
+            # ★★equal,notEqual スペルミスすると動かない！！！★★
+            inspect:
+              - propId: continue
+                equal: "stop"
+          inputs:
+            - {}
+            - :llm.choices.$0.finish_reason
+
+  # ネストノード２の結果をインプットにした処理
+  nestedsuggestIdea_result:
+    agent: "stringTemplateAgent"
+    params:
+      template: "\e[32m完成したPrompt\e[0m:\n${0}\n"
+    # contoleは必須
+    console:
+      after: true
+    # stringTemplateAgentのinputsは改行できない
+    # inputs: [":nestedsuggestIdea.meaning_llm.choices.$0.message.content"]
+    inputs: [":nestedsuggestIdea.information"]
+    # isResult: true
+
+  #################################################### 
+  # checkIdea
+  ####################################################
+  checkIdea:
+    agent: "mapAgent"
+    inputs:
+      rows: [:nestedsuggestIdea_result]
+    graph:
+      version: 0.5
+      loop:
+        while: :continue
+      nodes:
+        # 入力確認最新化
+        continue:
+          value: true
+          update: :checkInput.continue
+        # 入力
+        userInput:
+          agent: textInputAgent
+          params:
+            message: "相談内容:"  
+          console:
+            before:
+              "\e[1;32m■相談内容を教えてください（先のプロンプトを参考に）\n
+                \e[0m"
+        # 入力が「/bye」以外なら変数continueをtrueにする
+        checkInput:
+          agent: propertyFilterAgent
+          params:
+            inspect:
+              - propId: continue
+                notEqual: /bye
+          inputs:
+            - {}
+            - :userInput
+
+        # 直近の会話まとめ。次の会話へのインプットとする。
+        summary:
+          value: []
+          update: :reducer
+          isResult: true
+        accumulationSummary:
+          agent: stringTemplateAgent
+          params:
+            template: "\e[34m会話まとめ:\e[0m ${0}\n"
+          # 画面出力しないためにコメントアウト
+          # console:
+          #   after: true
+          inputs: [":summaryChat_LLM.choices.$0.message.content"]
+          # isResult: true
+        # LLMの結果を配列に入れる
+        reducer:
+          agent: pushAgent
+          inputs:
+            array: :summary
+            item: :accumulationSummary   
+
+        # アイデア検討
+        suggestIdea:
+          agent: stringTemplateAgent
+          console:
+            before: ...アイデア検討中    
+          params:
+            template: >
+              ベテランのプロジェクトマネージャとして、
+              以下に関するアイデアを10個考えてください。
+              理由は改行して２文字空けてから記載してください。
+              英語で考えて、結果はすべて日本語で表示すること。
+              また、マークダウン形式を使用しないでください。
+            
+              ${0}
+
+              なお、これまでの話の流れは以下の通りです。
+              ${1}
+          inputs: 
+            - :userInput
+            - :summary
+          if: :checkInput.continue
+          # isResult: true
+        suggestIdea_LLM:
+          # agent: groqAgent
+          # params:
+          #   model: Llama3-70b-8192
+            # model: llama-3.1-70b-versatile
+          agent: openAIAgent
+          params:
+            model: gpt-4o-mini   
+          inputs: 
+            prompt: :suggestIdea
+          isResult: true
+
+        # アイデアの評価
+        evaluationIdeas:
+          agent: stringTemplateAgent
+          console:
+            before: ...アイデアの評価中      
+          inputs: [":suggestIdea_LLM.choices.$0.message.content","userInput"]
+          params:
+            template: |
+              ベテランのプロジェクトマネージャとして、以下のアイデアを評価してください。
+              アイデアの後を記載後、その次の行に２文字空けてから評価内容を記載してください。
+              英語で考えて、結果はすべて日本語で表示すること。また、マークダウン形式を使用しないでください。
+              [相談事]
+              ${1}
+              [アイデア]
+              ${0}
+        evaluationIdeas_LLM:
+          # agent: groqAgent
+          # params:
+          #   model: Llama3-70b-8192
+            # model: llama-3.1-70b-versatile  
+          agent: openAIAgent
+          params:
+            model: gpt-4o-mini   
+          inputs:
+            prompt: :evaluationIdeas
+          # isResult: true
+
+        # トップ３選定
+        selectTop3:
+          agent: stringTemplateAgent
+          console:
+            before: ...トップ３選定中     
+          inputs: [":suggestIdea_LLM.choices.$0.message.content", ":evaluationIdeas_LLM.choices.$0.message.content"]
+          params:
+            template: |
+              このアイデア中から最も適切で効率的なアイデアのトップ３を選定し、
+              順番に金メダル、銀メダル、銅メダルとし、その選定理由も説明してください。
+              英語で考えて、結果はすべて日本語で、かつマークダウン形式を使用しないでください。
+              [アイデア]
+              ${0}
+              [評価]
+              ${1}
+        selectTop3_LLM:
+          # agent: groqAgent
+          # params:
+          #   model: Llama3-70b-8192  
+            # model: llama-3.1-70b-versatile  
+          agent: openAIAgent
+          params:
+            # model: gpt-4o   
+            model: gpt-4o-mini   
+          inputs:
+            prompt: :selectTop3
+
+        # 最終アウトプット生成
+        output:
+          agent: stringTemplateAgent
+          inputs: [":suggestIdea_LLM.choices.$0.message.content", ":evaluationIdeas_LLM.choices.$0.message.content", ":selectTop3_LLM.choices.$0.message.content",":nextQA_LLM.choices.$0.message.content",":summaryChat_LLM.choices.$0.message.content"]
+          params:
+            # template: "\e[34m[解決策]\e[0m\n${0}\n\n\e[31m[評価]\e[0m\n${1}\n\n\e[31m[結果]\e[0m\n${2}"
+            template: "\e[34m[解決策とその評価]\e[0m\n${1}\n\n\e[31m[結果]\e[0m\n${2}\n\n\e[31m[まとめ]\e[0m\n${4}\n\n\e[31m[次の質問]\e[0m\n${3}\n"
+          console:
+            after: true
+
+        # 次の質問生成
+        nextQA:
+          agent: stringTemplateAgent
+          console:
+            before: ...次の質問作成中  
+          inputs: [":userInput","selectTop3_LLM.choices.$0.message.content","selectTop3_LLM"]
+          params:
+            template: |
+              "あなたはベテランのプロジェクトマネージャです。
+              部下が提示してきた相談事に対するアイデアに対し質問を5個ほど提示して。
+              結果はすべて日本語で表示すること。
+              絶対にマークダウン形式を使用しないでください。
+              [相談事]
+              ${0}
+              [アイデア]
+              ${1}
+              "
+        nextQA_LLM:
+          # agent: groqAgent
+          # params:
+          #   model: llama-3.1-70b-versatile  
+          agent: openAIAgent
+          params:
+            model: gpt-4o-mini  
+          inputs:
+            prompt: :nextQA
+
+        # トップ３選定結果を１つの文章にまとめる
+        summaryChat:
+          agent: stringTemplateAgent
+          inputs: [":userInput","selectTop3_LLM.choices.$0.message.content"]
+          params:
+            template: |
+              "あなたは文章推敲のスペシャリストです。
+              以下のアイデアを第三者が見たときにわかるよう、
+              １つの文章にまとめてください。
+              結果はすべて日本語で表示すること。
+              絶対にマークダウン形式を使用しないでください"
+              [相談事]
+              ${0}
+              [アイデア]
+              ${1}
+              "
+        summaryChat_LLM:
+          # agent: groqAgent
+          # params:
+          #   model: Llama3-70b-8192  
+            # model: llama-3.1-70b-versatile  
+          agent: openAIAgent
+          params:
+            # model: gpt-4o
+            model: gpt-4o-mini
+          inputs:
+            prompt: :summaryChat
+
+        # これまでの会話の流れ
+        matome:
+          agent: stringTemplateAgent
+          console:
+            after: true    
+          inputs:
+            - :summary
+            - :output
+          if: :summary
+          params:
+            template: "\e[34m[これまでの会話の流れ]\e[0m\n${0}\n\n"

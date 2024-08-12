@@ -1,0 +1,139 @@
+version: 0.5
+loop:
+  while: :continue
+nodes:
+  continue:
+    value: true
+    update: :checkInput.continue
+
+  userInput_name:
+    agent: textInputAgent
+    params:
+      message: "トピック:"  
+    console:
+      before: "何について知りたいですか？"
+      
+  checkInput:
+    agent: propertyFilterAgent
+    params:
+      inspect:
+        - propId: continue
+          notEqual: /bye
+    inputs:
+      - {}
+      - :userInput_name      
+  prompt_topic:
+    agent: stringTemplateAgent
+    params:
+      template: > 
+        「${0}」について日本語で回答してください。
+    inputs: 
+      - :userInput_name
+  prompt_query:
+    agent: stringTemplateAgent
+    params:
+      template: > 
+        「${0}」について教えてください。
+    inputs: 
+      - :userInput_name        
+      
+  wikipedia:
+    console:
+      after: ...fetching data from wikkpedia
+    agent: wikipediaAgent
+    inputs:
+      - :userInput_name
+    params:
+      lang: ja
+  chunks:
+    console:
+      before: ...splitting the article into chunks
+    agent: stringSplitterAgent
+    inputs:
+      text: :wikipedia.content
+  embeddings:
+    console:
+      before: ...fetching embeddings for chunks
+    agent: stringEmbeddingsAgent
+    inputs:
+      - :chunks.contents
+  topicEmbedding:
+    console:
+      before: ...fetching embedding for the topic
+    agent: stringEmbeddingsAgent
+    inputs:
+      - :prompt_topic
+  similarityCheck:
+    agent: dotProductAgent
+    inputs:
+      matrix: :embeddings
+      vector: :topicEmbedding.$0
+  sortedChunks:
+    agent: sortByValuesAgent
+    inputs:
+      array: :chunks.contents
+      values: :similarityCheck
+  referenceText:
+    agent: tokenBoundStringsAgent
+    inputs:
+      chunks: :sortedChunks
+    params:
+      limit: 5000
+  prompt:
+    agent: stringTemplateAgent
+    inputs:
+      - :prompt_query
+      - :referenceText.content
+    params:
+      template: |-
+        Using the following document, ${0}
+
+        ${1}
+
+  #クエリ実行 
+  RagQuery:
+    console:
+      before: ...performing the RAG query
+    # agent: groqAgent
+    # params:
+    #   model: Llama3-70b-8192
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini    
+      query: "全文を日本語に翻訳して。余計なことは言わずに、翻訳した文章だけ答えて。あまり難しい単語は使わずに。"
+    inputs:
+      prompt: :prompt
+  OneShotQuery:
+    agent: openAIAgent
+    params:
+    #   model: gpt-4o
+      model: gpt-4o-mini    
+    inputs:
+      prompt: :prompt_query
+
+  # 結果出力（isResulet:trueのためにCopyAgent使っている）
+  RagResult:
+    agent: copyAgent
+    inputs:
+      - :RagQuery.choices.$0.message.content
+    # isResult: true
+  OneShotResult:
+    agent: copyAgent
+    inputs:
+      - :OneShotQuery.choices.$0.message.content
+    # isResult: true
+
+  AllResult_output:
+    agent: stringTemplateAgent
+    params:
+      template: "\e[32m回答\e[0m: \n \e[32m■ Wikipedia(${3})\e[0m:\n${0} \n\n\e[32m★ ${2}\e[0m:\n${1}"
+    console:
+      after: true
+    inputs:
+      - :RagResult
+      - :OneShotResult
+      - :OneShotQuery.model
+      - :RagQuery.model
+
+  

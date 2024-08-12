@@ -1,0 +1,188 @@
+version: 0.5
+nodes:
+  # 最初のプロンプト
+  First_prompt:
+    agent: stringTemplateAgent
+    params:
+      template: "\e[32mAI\e[0m: あなたの名前をカタカナ、またはローマ字で教えてください!"
+    console:
+      after: true
+  
+  nestedNode1:
+    agent: "mapAgent"
+    inputs: 
+      rows: [:First_prompt]
+    graph:
+      version: 0.5
+      loop:
+        while: :continue
+      nodes:
+        # 繰り返し定義
+        continue:
+          value: true
+          # update: :llm.choices.$0.message.content
+          update: :loopCheck.continue
+        # 最終結果の出力（nestedNode1の結果出力なのでisResult: true）
+        information:
+          value: {}
+          update: :argumentsParser
+          isResult: true
+        # メッセージ
+        messages:
+          value:
+            - role: system
+              content: >
+                以下の情報をユーザーから取得することがあなたの責任です。
+                １つ１つ確実に質問をしてください。
+                
+                1.name: 以下の条件を満たしてください。
+                ・姓と名の両方をかならず確認すること。
+                  ・カタカナ、またはローマ字であること。
+                  ・入力された文字がひらがなの場合はカタカナに変換してください。
+                ・絶対に勝手に漢字を勝手に推測してはいけません。
+
+                2.birthday: 年を含める必要があります。
+                  なお、１２０歳以上の場合は聞き直してください。
+
+                3.sex: 性別（名前から推測してはいけません）
+
+                4.symptom: 問診のスペシャリスト医師として、3つ程度の厳選した質問を出して
+                  症状を把握してください。１つ１つ回答させ、次の質問は前の質問をもとに作成してください。
+                
+                上記4つの情報をすべて取得したら、関数 'report' を呼び出してください。
+
+          update: :reducer
+        userInput:
+          agent: textInputAgent
+          params:
+            message: "あなた:"
+        userMessage:
+          agent: propertyFilterAgent
+          params:
+            inject:
+              - propId: content
+                from: 1
+          inputs:
+            - role: user
+            - :userInput
+        appendedMessages:
+          agent: pushAgent
+          inputs:
+            array: :messages
+            item: :userMessage
+        
+        # LLM
+        llm:
+          # agent: groqAgent
+          # params:
+          #   model: gemma2-9b-it
+          #   model: Llama3-70b-8192
+          agent: openAIAgent
+          params:
+            # model: gpt-4o
+            model: gpt-4o-mini
+            tools:
+              - type: function
+                function:
+                  name: report
+                  description: ユーザーから取得した情報を報告してください。
+                  parameters:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: 患者の名前（姓と名）
+                      birthday:
+                        type: string
+                        description: 患者の生年月日。
+                      sex:
+                        type: string
+                        description: 性別
+                        enum:
+                          - 男
+                          - 女
+                      symptom:
+                        type: string
+                        description: 患者の症状。
+
+                    required:
+                      - name
+                      - birthday
+                      - sex
+                      - symptom
+          inputs:
+            messages: :appendedMessages
+
+        # LLMの結果を配列に入れる
+        reducer:
+          agent: pushAgent
+          inputs:
+            array: :appendedMessages
+            item: :llm.choices.$0.message
+
+        # LLMの結果を画面に返却
+        output:
+          agent: stringTemplateAgent
+          params:
+            template: "\e[32mAIDoctor\e[0m: ${0}"
+          console:
+            after: true
+          inputs:
+            - :llm.choices.$0.message.content
+          if: :llm.choices.$0.message.content
+
+        # 結果に対してLLMで情報追加
+        # ★★★「最後に本会話は終了させてください」が重要。そうしないと会話続けてしまってエラーとなる
+        # "An assistant message with 'tool_calls' must be followed by tool messages responding to each 'tool_call_id'.
+        # ↑後で分かったことだが「LLMの回答（Contents）とtool_call回答の両方が入る」ことがある。その場合に上記エラーとなる。
+        # 対策として、ループ判定を「:llm.choices.$0.message.content」⇒「loopCheck」の通りに修正した
+        meaning_llm:
+          # agent: groqAgent
+          # params:
+          #   model: gemma2-9b-it        
+          agent: openAIAgent
+          params:
+            model: gpt-4o
+            system: >
+              ■入力データをもとに、以下を追加し、結果だけを返して。
+                1.年齢を追加（誕生日から計算して）
+                2.応急処置を追加（症状に対する応急処置を具体的に）
+              ■「symptom」については医師に報告する用に文章を推敲しなおして。
+              ■最後に出力はjson形式にして本会話は終了させてください。
+          inputs:
+            prompt: :llm.choices.$0.message.tool_calls.$0.function.arguments
+          if: :llm.choices.$0.message.tool_calls
+
+        # Json形式だと「nestedNode1_result」で出力できないので
+        # いったんcopyAgentを使う
+        argumentsParser:
+          # agent: jsonParserAgent
+          agent: copyAgent
+          inputs:
+            - :meaning_llm.choices.$0.message.content
+          if: :meaning_llm.choices.$0.message.content
+
+        # llmのfinish_reasonを確認。tool_calls以外は「stop」となる。
+        # よって、stopの時にループする
+        loopCheck:
+          agent: propertyFilterAgent
+          params:
+            # ★★equal,notEqual スペルミスすると動かない！！！★★
+            inspect:
+              - propId: continue
+                equal: "stop"
+          inputs:
+            - {}
+            - :llm.choices.$0.finish_reason
+
+  # ネストノード２の結果をインプットにした処理
+  nestedNode1_result:
+    agent: "stringTemplateAgent"
+    params:
+      template: "\e[32m結果\e[0m: ${0}"
+    # contoleは必須
+    console:
+      after: true
+    # stringTemplateAgentのinputsは改行できない
+    inputs: [":nestedNode1.information"]
+    # isResult: true

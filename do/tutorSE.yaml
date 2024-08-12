@@ -1,0 +1,153 @@
+version: 0.5
+# ループ処理
+loop:
+  # continueがTrueとなる間
+  while: :continue
+nodes:
+  word:
+    agent: textInputAgent
+    params:
+      message: "勉強したいシステム用語を入力してください:"
+
+  # 入力確認最新化
+  continue:
+    value: true
+    update: :checkInput.continue
+    
+  # 入力が「/bye」以外なら変数continueをtrueにする
+  checkInput:
+    agent: propertyFilterAgent
+    params:
+      inspect:
+        - propId: continue
+          notEqual: /bye
+    inputs:
+      - {}
+      - :word
+
+  # 意味
+  meaning_jp_llm:
+    # agent: groqAgent
+    # params:
+      # model: gemma2-9b-it      
+      # model: Llama3-70b-8192      
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini
+      system: >
+        "あなたはシステム開発会社で活躍して数多くのプロジェクトを成功に導いた
+        大ベテランのプロジェクトマネージャーです。
+         与えられた単語の意味を日本語で説明してください。
+         英語で考えて、結果は日本語で表示すること。
+        また、マークダウン形式を使用しないでください。
+         "
+    inputs:
+      prompt: ":word"
+    if: :checkInput.continue
+  meaning_jp:
+    agent: copyAgent
+    # agent: jsonParserAgent
+    # isResult: true
+    inputs:
+      - ":meaning_jp_llm.choices.$0.message.content"
+
+  # サンプル
+  samples_llm:
+    # agent: groqAgent
+    # params:
+      # model: gemma2-9b-it      
+      # model: Llama3-70b-8192  
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini
+      system: |
+        "与えられた単語を含む、日本語の文章を10個作って。
+        あまり難しい単語は使わずに。
+        英語で考えて、結果は日本語で表示すること。
+        また、マークダウン形式を使用しないでください。
+        "
+    inputs:
+      prompt: ":word"
+    if: :checkInput.continue
+  samples:
+    agent: copyAgent
+    # agent: jsonParserAgent
+    # isResult: true
+    inputs:
+      - ":samples_llm.choices.$0.message.content"
+
+  # 類似語
+  similar_llm:
+    # agent: groqAgent
+    # params:
+      # model: gemma2-9b-it      
+      # model: Llama3-70b-8192  
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini
+      system: |
+        "与えられた単語をと類似するいくつか単語を並べて、
+        日本語で違いを説明して。
+        英語で考えて、結果は日本語で表示すること。
+        また、マークダウン形式を使用しないでください。
+        "
+    inputs:
+      prompt: ":word"
+    if: :checkInput.continue
+  similar:
+    agent: copyAgent
+    # agent: jsonParserAgent
+    # isResult: true
+    inputs:
+      - ":similar_llm.choices.$0.message.content"
+
+  # 補足説明
+  root_llm:
+    # agent: groqAgent
+    # params:
+      # model: gemma2-9b-it      
+      # model: Llama3-70b-8192  
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini
+      system: >
+        "あなたはシステム開発会社で活躍して数多くのプロジェクトを成功に導いた
+        大ベテランのプロジェクトマネージャーです。
+        与えられた単語の語源を解説して。
+        英語で考えて、結果は日本語で表示すること。
+        また、マークダウン形式を使用しないでください。
+        "
+    inputs:
+      prompt: ":word"
+    if: :checkInput.continue
+  root:
+    agent: copyAgent
+    # agent: jsonParserAgent
+    # isResult: true
+    inputs:
+      - ":root_llm.choices.$0.message.content"
+
+  # 最終的な出力
+  root_output:
+    agent: stringTemplateAgent
+    # isResult: true
+    params:
+      template: 
+        "
+        \e[32m■ 意味\e[0m: \n ${0} \n\n
+        \e[32m■ 用語を使った例文\e[0m: \n${1} \n\n
+        \e[32m■ 類似語\e[0m: \n ${2} \n\n
+        \e[32m■ コメント（語源とか）\e[0m: \n ${3} \n
+        "
+    console:
+      after: true
+    inputs:
+      - :meaning_jp
+      - :samples
+      - :similar
+      - :root
+

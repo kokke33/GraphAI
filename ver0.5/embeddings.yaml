@@ -1,0 +1,30 @@
+version: 0.5
+nodes:
+  strings:
+    value:
+      - "王"
+      - "女王"
+      - "貴族"
+      - "男"
+      - "女"
+      - "庶民"
+      - "農民"
+    isResult: true
+  embeddings:
+    agent: "stringEmbeddingsAgent"
+    inputs:
+      - ":strings"
+  similarities:
+    agent: "mapAgent"
+    inputs:
+      rows: ":embeddings"
+      embeddings: ":embeddings"
+    graph:
+      nodes:
+        result:
+          agent: "dotProductAgent"
+          inputs:
+            matrix: ":embeddings"
+            vector: ":row"
+          isResult: true
+    isResult: true

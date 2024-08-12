@@ -1,0 +1,132 @@
+version: 0.5
+nodes:
+  name:
+    # ユーザーにインタビューしたい人の名前を入力させる。
+    agent: textInputAgent
+    params:
+      message: "インタビューしたい人の名前を入力してください:"
+  context:
+    # このインタビューのコンテキストを準備する。
+    agent: stringTemplateAgent
+    params:
+      template:
+        person0:
+          name: "Interviewer"
+          system: system_interviewer
+        person1:
+          name: "${0}"
+          system: "You are ${0}."
+          greeting: "Hi, I'm ${0}"
+    inputs:
+      - ":name"
+  messages:
+    # システムメッセージとユーザーメッセージを準備する。
+    agent: propertyFilterAgent
+    params:
+      inject:
+        - index: 0
+          propId: content
+          from: 1
+        - index: 1
+          propId: content
+          from: 2
+    inputs:
+      - 
+        - role: system
+        - role: user
+      - ":context.person0.system"
+      - ":context.person1.greeting"
+  chat:
+    # ネストされたグラフを使用して会話を実行する。
+    agent: nestedAgent
+    inputs:
+      messages: ":messages"
+      context: ":context"
+    isResult: true
+    graph:
+      loop:
+        count: 6
+      nodes:
+        messages:
+          # 会話を保持する、メッセージの配列。
+          value: [] # inputs[2]で埋められる
+          update: ":swappedMessages"
+          isResult: true
+        context:
+          # 各イテレーションでスワップされるコンテキストを保持する。
+          value: {} # inputs[1]で埋められる
+          update: ":swappedContext"
+        groq:
+          # これらのメッセージをLLMに送信して応答を得る。
+          agent: openAIAgent
+          params:
+            model: gpt-4o-mini
+          inputs:
+            messages: ":messages"
+        translate:
+          # LLMにそれを日本語に翻訳するよう依頼する。
+          agent: openAIAgent
+          params:
+            system: "この文章を日本語に訳して。意訳でも良いので、出来るだけ自然に相手に敬意を払う言葉遣いで。余計なことは書かずに、翻訳の結果だけ返して。"
+            model: gpt-4o-mini
+          inputs:
+            prompt: ":messages.$last.content"
+        output:
+          # ユーザーに応答を表示する。
+          agent: stringTemplateAgent
+          params:
+            template: "\x1b[32m${1}:\x1b[0m ${0}\n"
+          console:
+            after: true
+          inputs:
+            - ":translate.choices.$0.message.content"
+            - ":context.person1.name"
+        reducer:
+          # 応答をメッセージに追加する。
+          agent: pushAgent
+          inputs:
+            array: ":messages"
+            item: ":groq.choices.$0.message"
+        swappedContext:
+          # コンテキストをスワップする。
+          agent: propertyFilterAgent
+          params:
+            swap:
+              person0: person1
+          inputs:
+            - ":context"
+          isResult: true
+        swappedMessages:
+          # メッセージのユーザーとアシスタントをスワップする。
+          agent: propertyFilterAgent
+          params:
+            inject:
+              - propId: content
+                index: 0
+                from: 1
+            alter:
+              role:
+                assistant: user
+                user: assistant
+          inputs:
+            - ":reducer"
+            - ":swappedContext.person0.system"
+          isResult: true
+  translate:
+    # このノードはそれらのメッセージをLlama3に送信して応答を得る。
+    agent: openAIAgent
+    params:
+      system: "この文章を日本語に訳して。出来るだけ自然な口語に。余計なことは書かずに、翻訳の結果だけ返して。"
+      model: gpt-4o-mini
+    inputs:
+      prompt: ":chat.swappedMessages.$last.content"
+  output:
+    # このノードはユーザーに応答を表示する。
+    agent: stringTemplateAgent
+    params:
+      template: "\x1b[32m${1}:\x1b[0m ${0}\n"
+    console:
+      after: true
+    inputs:
+      - ":translate.choices.$0.message.content"
+      - ":chat.swappedContext.person1.name"

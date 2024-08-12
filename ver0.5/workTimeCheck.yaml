@@ -1,0 +1,274 @@
+version: 0.5
+nodes:
+  # 一番最初の処理
+  First_prompt:
+    agent: stringTemplateAgent
+    params:
+      template: "\e[32mAI\e[0m: 社員番号を教えてください"
+    console:
+      after: true
+
+  # 最初のネストノード
+  nestedNode1:
+    # nestedAgent ：結果は XX,YY といった感じ。文字,つながり
+    # mapAgent ：結果は [XX,YY] といった感じ配列型。
+    # agent: "nestedAgent"
+    agent: "mapAgent"
+    # mapAgentにinputsは必須らしいので適当に設定
+    inputs: 
+      rows: [":First_prompt"]
+    graph:
+      version: 0.5
+      loop:
+        while: :continue
+      nodes:
+        continue:
+          value: true
+          update: :loopCheck.continue
+        information:
+          value: {}
+          update: :argumentsParser
+          isResult: true
+        messages:
+          value:
+            - role: system
+              content: >
+                以下6つの情報をユーザーから取得することがあなたの責任です。
+                連続6時間以上の勤務にならないよう確認してください。結果のみ報告してください。
+
+                1.userNumber
+                2.date
+                3.workStartTime
+                4.workEndTime
+                5.breakTimeStart
+                6.breakTimeEnd        
+
+                必ず１つ１つ確実に質問をしてください。一度に質問することはダメです。
+                1.userNumber:
+                  社員番号です。99から始まる5桁の数字であることを必ず確認してください。
+                2.date:
+                  勤務日です
+                3.workStartTime:
+                  24時間表記で。HHMM形式でも許可。
+
+                4.workEndTime:
+                  24時間表記で。HHMM形式でも許可。
+
+                5.労働時間を把握:
+                  workEndTimeの情報から労働時間を把握してください。
+
+                6.休憩時間（breakTimeEndとbreakTimeStart）:
+                  以下の条件を満たしてください。
+                  ・1時間単位とする。休憩時間は必ず「XX:00」のように分は00とすること。
+                  ・workStartTimeから6時間以内に1回目の1時間の休憩が必要。
+                  ・1回目の休憩終了時間から計算して、残りの勤務時間が連続6時間あれば、
+                    さらに6時間ごとに1時間休憩が必要です。
+                    最終的に何時間の休憩が必要かをステップバイステップで説明してください。
+                  ・退社時間と休憩終了時間と同じ場合は、休憩開始時間を早めることで同じ時刻
+                    にならないようにしてください。
+                  ・1回目の休憩終了時間から計算して、残りの勤務時間が6時間未満の場合は休憩は不要です。
+                  ・workStartTimeが8時～11時の場合は、12時～13時に休憩したと強制的にみなしますので、
+                    1回目の休憩は申請不要。
+                  
+                  6-1.breakTimeStart:24時間表記で。HHMM形式でも許可。不要な場合もある。
+                  6-2.breakTimeEnd:24時間表記で。HHMM形式でも許可。不要な場合もある。
+
+                ステップバイステップで考えてください。
+                上記4つの情報をすべて取得したら、【出力サンプル】のレイアウトに沿って結果を表示し、
+                関数 'report' を呼び出してください。
+
+                7.最後に、休憩時間の分は00分となっていること確認してください。
+
+                【出力サンプル】
+                  AI: 先ほどの計算で出社時間が7:00、退社時間が21:00となり、
+                  労働時間が14時間となります。
+
+                  これに基づき、休憩時間を設定する必要があります。
+                  まず、最初の6時間後に1回目の休憩を取ると仮定します。
+
+                  1回目の休憩:
+                  - 休憩開始時間: 13:00 ※「XX:00」のように分は00とする
+                  - 休憩終了時間: 14:00
+
+                  次に、1回目の休憩終了時間から計算して、さらに6時間後に2回目の休憩を取る必要があります。
+
+                  2回目の休憩:
+                  - 休憩開始時間: 20:00
+                  - 休憩終了時間: 21:00
+
+                  このように設定すると、2回目の休憩終了時間が退社時間と同じになってしまうため、
+                  2回目の休憩開始時間を早める必要があります。
+
+                  2回目の修正休憩:
+                  - 休憩開始時間: 19:00
+                  - 休憩終了時間: 20:00
+                  
+          update: :reducer
+        userInput:
+          agent: textInputAgent
+          params:
+            message: "You:"
+        userMessage:
+          agent: propertyFilterAgent
+          params:
+            inject:
+              - propId: content
+                from: 1
+          inputs:
+            - role: user
+            - :userInput
+        appendedMessages:
+          agent: pushAgent
+          inputs:
+            array: :messages
+            item: :userMessage
+        llm:
+          # agent: groqAgent
+          # params:
+          #   model: gemma2-9b-it            
+          agent: openAIAgent
+          params:
+            # model: gpt-4o
+            model: gpt-4o-mini
+            tools:
+              - type: function
+                function:
+                  name: report
+                  description: ユーザーから取得した情報を報告してください。
+                  parameters:
+                    type: object
+                    properties:
+                      userNumber:
+                        type: string
+                        description: 勤務者の社員番号。99から始まる5桁の数字であること。
+                      date:
+                        type: string
+                        description: 勤務日(yyyy/mm/dd)
+                      workStartTime:
+                        type: string
+                        description: 出社時間（hh:mm）
+                      workEndTime:
+                        type: string
+                        description: 退社時間（hh:mm）
+                      breakTimeStart1:
+                        type: string
+                        description: １回目の休憩開始時間（hh:mm）。「XX:00」のように分は00とする
+                      breakTimeEnd1:
+                        type: string
+                        description: １回目の休憩終了時間（hh:mm）。「XX:00」のように分は00とする
+                      breakTimeStart2:
+                        type: string
+                        description: ２回目の休憩開始時間（hh:mm）。「XX:00」のように分は00とする
+                      breakTimeEnd2:
+                        type: string
+                        description: ２回目の休憩終了時間（hh:mm）。「XX:00」のように分は00とす。
+                      workTotalTime:
+                        type: string
+                        description: 退社時間から出社時間を減算した勤務時間
+                    required:
+                      - userNumber
+                      - date
+                      - workStartTime
+                      - workEndTime
+                      - breakTimeStart1
+                      - breakTimeEnd1
+                      - breakTimeStart2
+                      - breakTimeEnd2
+                      - workTotalTime
+          inputs:
+            messages: :appendedMessages
+        argumentsParser:
+          # agent: jsonParserAgent
+          agent: copyAgent
+          inputs:
+            - :llm.choices.$0.message.tool_calls.$0.function.arguments
+          if: :llm.choices.$0.message.tool_calls
+        output:
+          agent: stringTemplateAgent
+          params:
+            template: "\e[32mAI\e[0m: ${0}"
+          console:
+            after: true
+          inputs:
+            - :llm.choices.$0.message.content
+          if: :llm.choices.$0.message.content
+        reducer:
+          agent: pushAgent
+          inputs:
+            array: :appendedMessages
+            item: :llm.choices.$0.message
+        # LLMのfinish_reasonを確認。tool_calls以外は「stop」
+        # stopの時にループする
+        loopCheck:
+          agent: propertyFilterAgent
+          params:
+            # ★★equal,notEqual スペルミスすると動かない！！！★★
+            inspect:
+              - propId: continue
+                equal: "stop"
+          inputs:
+            - {}
+            - :llm.choices.$0.finish_reason
+
+  # 最初のネストノードの結果をインプットにした処理
+  nestedNode1_result:
+    agent: "bypassAgent"
+    inputs: [":nestedNode1.information"]
+    # isResult: true
+
+  # その結果を受けて、別のmapエージェントにインプット
+  nestedNode2:
+    agent: "mapAgent"
+    inputs: 
+      rows: [:nestedNode1_result]
+    graph:
+      version: 0.5
+      nodes:
+        # stringTemplateAgent_node:
+        #   agent: "stringTemplateAgent"
+        #   params:
+        #     template: "\e[32m結果出力\e[0m: ${0}"
+        #   # contoleは必須
+        #   console:
+        #     after: true
+        #   # stringTemplateAgentのinputsは改行できない
+        #   inputs: [:$0] 
+        #   isResult: true
+        # LLM
+        prompt:
+          agent: stringTemplateAgent
+          params:
+            template: > 
+                ${0} 
+                入力データをもとに、以下を追加して。
+                  1.深夜時間を追加（22時～05時の間は深夜時間）
+                  2.コメントを追加（労働基準監督者としてインプットの労働状況に対して
+                    コメントを100字以内で述べて）
+          inputs: [:row]
+        llm:
+          # agent: groqAgent
+          # params:
+          #   model: gemma2-9b-it      
+          agent: openAIAgent
+          params:
+            model: gpt-4o-mini
+            # model: gpt-4o
+          inputs: 
+            prompt: [:prompt]
+        result_llm:
+          agent: copyAgent
+          inputs: [:llm.choices.$0.message.content]
+          isResult: true
+          
+  # ネストノード２の結果をインプットにした処理
+  nestedNode2_result:
+    agent: "stringTemplateAgent"
+    params:
+      template: "\e[32m結果\e[0m: ${0}"
+    # contoleは必須
+    console:
+      after: true
+    # stringTemplateAgentのinputsは改行できない
+    inputs: [":nestedNode2.result_llm"]
+    # isResult: true
+

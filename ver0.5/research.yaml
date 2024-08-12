@@ -1,0 +1,138 @@
+version: 0.5
+nodes:
+  topic:
+    agent: textInputAgent
+    params:
+      message: Type the topic you want to research
+  detector:
+    agent: nestedAgent
+    console: 
+      before: Detecting language...
+    inputs: 
+      topic: ":topic"
+    graph:
+      version: 0.5
+      nodes:
+        identifier:
+          agent: openAIAgent
+          params:
+            model: gpt-4o
+            system: >
+              You are responsible in identifying the language of the input and translate it into English. 
+              Call the 'translated' function with 'language' and 'englishTranslation'. 
+              If the input is already in English, call the 'translated' function with 'englishTranslate=the input text', and 'language=English'.
+            tools:
+              - type: function
+                function:
+                  name: translated
+                  description: Report the language of the input and its English translation.
+                  parameters:
+                    type: object
+                    properties:
+                      englishTranslation:
+                        type: string
+                        description: English translation of the input
+                      language:
+                        type: string
+                        description: Identified language
+                        values: ["English", "Japanese", "French", "Spanish", "Italian"]
+                    required: ["result"]
+            tool_choice: 
+              type: function
+              function: 
+                name: translated
+          inputs: 
+            prompt: ":topic"
+        parser:
+          agent: jsonParserAgent
+          inputs: 
+            - ":identifier.choices.$0.message.tool_calls.$0.function.arguments"
+        extractor:
+          agent: stringTemplateAgent
+          params:
+            template: 
+              language: "${0}"
+              text: "${1}"
+          inputs: 
+            - ":parser.language"
+            - ":parser.englishTranslation"
+        result:
+          agent: propertyFilterAgent
+          params:
+            inspect: 
+              - propId: isEnglish
+                equal: English
+          inputs: 
+            - ":extractor"
+            - ":extractor.language"
+          isResult: true
+    isResult: true
+  wikipedia:
+    agent: nestedAgent
+    inputs: 
+      topic: ":detector.result.text"
+    isResult: true
+    graph:
+      version: 0.5
+      nodes:
+        wikipedia:
+          agent: wikipediaAgent
+          console: 
+            before: Fetching data from Wikipedia...
+          params:
+            lang: en
+          inputs: 
+            - ":topic"
+        summary:
+          agent: openAIAgent
+          console: 
+            before: Summarizing it...
+          params:
+            model: gpt-4o
+            system: Summarize the text below in 200 words
+          inputs: 
+            prompt: ":wikipedia.content"
+        result:
+          agent: copyAgent
+          isResult: true
+          inputs: 
+            - ":summary.choices.$0.message.content"
+  translate:
+    agent: nestedAgent
+    inputs: 
+      content: ":wikipedia.result"
+      lang_info: ":detector.result"
+    isResult: true
+    graph:
+      version: 0.5
+      nodes:
+        english:
+          agent: copyAgent
+          if: ":lang_info.isEnglish"
+          inputs: 
+            - ":content"
+        nonEnglish:
+          agent: stringTemplateAgent
+          params:
+            template: Translate the text below into ${0}
+          inputs: 
+            - ":lang_info.language"
+          unless: ":lang_info.isEnglish"
+          isResult: true
+        translate:
+          agent: openAIAgent
+          console: 
+            before: Translating it...
+          params:
+            model: gpt-4o
+            system: ":nonEnglish"
+          inputs: 
+            prompt: ":content"
+          isResult: true
+        result:
+          agent: copyAgent
+          anyInput: true
+          inputs: 
+            - ":english"
+            - ":translate.choices.$0.message.content"
+          isResult: true
