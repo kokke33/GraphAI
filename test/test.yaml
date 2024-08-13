@@ -1,34 +1,106 @@
-version: 0.5
-nodes:
-  sample_output: |
-    This sample graph was designed to simulate an interview with a famous person. The flow involves multiple agents working together to process user input, generate conversational context, and manage an iterative chat process.
-  
-    1. The user is prompted to input the name of a famous person through the `name` node.
-    2. The `context` node generates the interview context using the input name.
-    3. The `messages` node initializes the conversation with system and greeting messages.
-    4. The `chat` node manages the conversation flow using a nested graph, iterating 6 times.
-    5. Within the nested graph:
-       - The `groq` node generates a response from the model.
-       - The `output` node formats the response and prints it to the console.
-       - The `reducer` node appends the new message to the messages array.
-       - The `swappedContext` node swaps the roles of interviewer and interviewee.
-       - The `swappedMessages` node updates the messages for the next iteration.
-    6. The cycle repeats for 6 iterations, simulating a back-and-forth interview.
-  
-  describer:
-    agent: openAIAgent
-    params:
-      model: gpt-4o-mini
-      system: |
-        あなたはGraphAIプログラミングの専門家です。グラフデータを読み取り、その動作を説明する責任があります。
-        ここにGraphAIのドキュメントがあります。
-        {{document}}
-        [Sample Output]
-        {{sample_output}}
-    inputs:
-      prompt: "{{graph_data}}"
-  description:
-    agent: copyAgent
-    inputs:
-      - ":describer.choices.$0.message.content"
-    isResult: true
+    version: 0.5
+    loop:
+      while: :continue
+    nodes:
+      continue:
+        value: true
+        update: :checkInput.continue
+
+      userInput_name:
+        agent: textInputAgent
+        params:
+          message: "トピック:"  
+        console:
+          before: "何について知りたいですか？"
+
+      checkInput:
+        agent: propertyFilterAgent
+        params:
+          inspect:
+            - propId: continue
+              notEqual: /bye
+        inputs:
+          - {}
+          - :userInput_name      
+      prompt_topic:
+        agent: stringTemplateAgent
+        params:
+          template: > 
+            「${0}」について日本語で回答してください。
+        inputs: 
+          - :userInput_name
+      prompt_query:
+        agent: stringTemplateAgent
+        params:
+          template: > 
+            「${0}」について教えてください。
+        inputs: 
+          - :userInput_name        
+
+      wikipedia:
+        console:
+          after: ...fetching data from wikkpedia
+        agent: wikipediaAgent
+        inputs:
+          - :userInput_name
+        params:
+          lang: ja
+      chunks:
+        console:
+          before: ...splitting the article into chunks
+        agent: stringSplitterAgent
+        inputs:
+          text: :wikipedia.content
+      embeddings:
+        console:
+          before: ...fetching embeddings for chunks
+        agent: stringEmbeddingsAgent
+        inputs:
+          - :chunks.contents
+      topicEmbedding:
+        console:
+          before: ...fetching embedding for the topic
+        agent: stringEmbeddingsAgent
+        inputs:
+          - :prompt_topic
+      similarityCheck:
+        agent: dotProductAgent
+        inputs:
+          matrix: :embeddings
+          vector: :topicEmbedding.$0
+      sortedChunks:
+        agent: sortByValuesAgent
+        inputs:
+          array: :chunks.contents
+          values: :similarityCheck
+      referenceText:
+        agent: tokenBoundStringsAgent
+        inputs:
+          chunks: :sortedChunks
+        params:
+          limit: 5000
+      prompt:
+        agent: stringTemplateAgent
+        inputs:
+          - :prompt_query
+          - :referenceText.content
+        params:
+          template: |-
+            Using the following document, ${0}
+
+            ${1}
+
+      #クエリ実行 
+      RagQuery:
+        console:
+          before: ...performing the RAG query
+        # agent: groqAgent
+        # params:
+        #   model: Llama3-70b-8192
+        agent: openAIAgent
+        params:
+          # model: gpt-4o
+          model: gpt-4o-mini    
+          query: "全文を日本語に翻訳して。余計なことは言わずに、翻訳した文章だけ答えて。あまり難しい単語は使わずに。"
+        inputs:
+          prompt: :prompt
