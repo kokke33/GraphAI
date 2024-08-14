@@ -68,6 +68,9 @@ Create a Repl から `TypeScript` を選択。<br>
 
 ## 1. GraphAIのインストール
 右下ウィンドウのTools＞Shell（Ctrl+@） を起動して<br>
+
+![alt text](pictures/replit_Shell1.jpg)
+
 以下のコマンドを実行するだけ
 ```
 npm i -g  @receptron/graphai_cli
