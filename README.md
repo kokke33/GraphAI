@@ -72,7 +72,8 @@ Create a Repl から `TypeScript` を選択。<br>
 ![alt text](pictures/replit_Shell1.jpg)
 
 以下のコマンドを実行するだけ
-```
+
+```shell
 npm i -g  @receptron/graphai_cli
 ```
 
@@ -90,7 +91,7 @@ OpenAIとGroqの２つのAPIがあればよい。<br>
 ### :heavy_check_mark: `.env`ファイルをプロジェクト直下に作成。ファイルの中身は以下の通り。
  ![alt text](pictures/replit_env1.jpg)
  
- ```
+ ```shell
 const myOpenAI = process.env['OPENAI_API_KEY']
 const myGroq = process.env['GROQ_API_KEY']
 const myGoogle = process.env['GOOGLE_GENAI_API_KEY']
@@ -111,15 +112,16 @@ Replitは無料利用の場合、作成したソースは公開されてしま�
 interview_SE.yaml を実行する場合は以下のコマンド実施。<br>
 ソース修正後、都度以下コマンドを実行すればすぐに動作する（コンパイルなどは不要）。
 
-```
+```shell
 graphai src/interview_SE.yaml
 ```
 
 ## 5. ログ
 以下のコマンドでログの出力が可能。<br>
 :warning:大量のログが出ます。
-```
-graphai do/interview_SE.yaml -log log/interview_SE.log
+
+```shell
+graphai src/interview_SE.yaml -log log/interview_SE.log
 ```
 <br>
 
