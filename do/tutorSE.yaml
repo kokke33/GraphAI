@@ -3,7 +3,9 @@ version: 0.5
 loop:
   # continueがTrueとなる間
   while: :continue
+# 通常ノード
 nodes:
+  # 検索文言を取得
   word:
     agent: textInputAgent
     params:
@@ -25,7 +27,7 @@ nodes:
       - {}
       - :word
 
-  # 意味
+  # 意味の取得
   meaning_jp_llm:
     # agent: groqAgent
     # params:
@@ -52,7 +54,7 @@ nodes:
     inputs:
       - ":meaning_jp_llm.choices.$0.message.content"
 
-  # サンプル
+  # サンプルの取得
   samples_llm:
     # agent: groqAgent
     # params:
@@ -150,4 +152,116 @@ nodes:
       - :samples
       - :similar
       - :root
+      - :wikipediaNode
 
+  # Wikipediaノード
+  wikipediaNode:
+    agent: "mapAgent"
+    inputs: 
+      rows: [:word]
+    if: :checkInput.continue
+    graph:
+      version: 0.5
+      nodes:
+        prompt_topic:
+          agent: stringTemplateAgent
+          params:
+            template: > 
+              「${0}」について日本語で回答してください。
+          inputs: [:row]
+        prompt_query:
+          agent: stringTemplateAgent
+          params:
+            template: > 
+              「${0}」について教えてください。
+          inputs: [:row] 
+        wikipedia:
+          console:
+            after: ...fetching data from wikkpedia
+          agent: wikipediaAgent
+          inputs: [:row]
+          params:
+            lang: ja
+        chunks:
+          console:
+            before: ...splitting the article into chunks
+          agent: stringSplitterAgent
+          inputs:
+            text: :wikipedia.content
+        embeddings:
+          console:
+            before: ...fetching embeddings for chunks
+          agent: stringEmbeddingsAgent
+          inputs:
+            - :chunks.contents
+        topicEmbedding:
+          console:
+            before: ...fetching embedding for the topic
+          agent: stringEmbeddingsAgent
+          inputs:
+            - :prompt_topic
+        similarityCheck:
+          agent: dotProductAgent
+          inputs:
+            matrix: :embeddings
+            vector: :topicEmbedding.$0
+        sortedChunks:
+          agent: sortByValuesAgent
+          inputs:
+            array: :chunks.contents
+            values: :similarityCheck
+        referenceText:
+          agent: tokenBoundStringsAgent
+          inputs:
+            chunks: :sortedChunks
+          params:
+            limit: 5000
+        prompt:
+          agent: stringTemplateAgent
+          inputs:
+            - :prompt_query
+            - :referenceText.content
+          params:
+            template: |-
+              Using the following document, ${0}
+              ${1}
+       
+        #Ragの結果をAIにまとめてもらうクエリ実行
+        RagQuery:
+          console:
+            before: ...performing the RAG query
+          # agent: groqAgent
+          # params:
+          #   model: Llama3-70b-8192
+          agent: openAIAgent
+          params:
+            # model: gpt-4o
+            model: gpt-4o-mini    
+            sytem: >
+              "
+              あなたは文章要約のプロフェッショナルです。
+              英語で考えて、結果は日本語で表示すること。
+              絶対にマークダウン形式を使わないでください。
+              "
+          inputs:
+            prompt: :prompt
+        
+        # 結果出力（isResulet:trueのためにCopyAgent使っている）
+        RagResult:
+          agent: copyAgent
+          inputs:
+            - :RagQuery.choices.$0.message.content
+          # isResult: true
+        
+        AllResult_output:
+          agent: stringTemplateAgent
+          params:
+            template: "\e[32m回答\e[0m: \n \e[32m■ Wikipedia(${1})\e[0m:\n${0} \n"
+          console:
+            after: true
+          inputs:
+            - :RagResult
+            - :RagQuery.model
+            - :prompt
+      
+      
