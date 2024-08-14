@@ -1,0 +1,267 @@
+version: 0.5
+# ループ処理
+loop:
+  # continueがTrueとなる間
+  while: :continue
+# 通常ノード
+nodes:
+  # 検索文言を取得
+  word:
+    agent: textInputAgent
+    params:
+      message: "勉強したいシステム用語を入力してください:"
+
+  # 入力確認最新化
+  continue:
+    value: true
+    update: :checkInput.continue
+    
+  # 入力が「/bye」以外なら変数continueをtrueにする
+  checkInput:
+    agent: propertyFilterAgent
+    params:
+      inspect:
+        - propId: continue
+          notEqual: /bye
+    inputs:
+      - {}
+      - :word
+
+  # 意味の取得
+  meaning_jp_llm:
+    # agent: groqAgent
+    # params:
+      # model: gemma2-9b-it      
+      # model: Llama3-70b-8192      
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini
+      system: >
+        "あなたはシステム開発会社で活躍して数多くのプロジェクトを成功に導いた
+        大ベテランのプロジェクトマネージャーです。
+         与えられた単語の意味を日本語で説明してください。
+         英語で考えて、結果は日本語で表示すること。
+        また、マークダウン形式を使用しないでください。
+         "
+    inputs:
+      prompt: ":word"
+    if: :checkInput.continue
+  meaning_jp:
+    agent: copyAgent
+    # agent: jsonParserAgent
+    # isResult: true
+    inputs:
+      - ":meaning_jp_llm.choices.$0.message.content"
+
+  # サンプルの取得
+  samples_llm:
+    # agent: groqAgent
+    # params:
+      # model: gemma2-9b-it      
+      # model: Llama3-70b-8192  
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini
+      system: |
+        "与えられた単語を含む、日本語の文章を10個作って。
+        あまり難しい単語は使わずに。
+        英語で考えて、結果は日本語で表示すること。
+        また、マークダウン形式を使用しないでください。
+        "
+    inputs:
+      prompt: ":word"
+    if: :checkInput.continue
+  samples:
+    agent: copyAgent
+    # agent: jsonParserAgent
+    # isResult: true
+    inputs:
+      - ":samples_llm.choices.$0.message.content"
+
+  # 類似語
+  similar_llm:
+    # agent: groqAgent
+    # params:
+      # model: gemma2-9b-it      
+      # model: Llama3-70b-8192  
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini
+      system: |
+        "与えられた単語をと類似するいくつか単語を並べて、
+        日本語で違いを説明して。
+        英語で考えて、結果は日本語で表示すること。
+        また、マークダウン形式を使用しないでください。
+        "
+    inputs:
+      prompt: ":word"
+    if: :checkInput.continue
+  similar:
+    agent: copyAgent
+    # agent: jsonParserAgent
+    # isResult: true
+    inputs:
+      - ":similar_llm.choices.$0.message.content"
+
+  # 補足説明
+  root_llm:
+    # agent: groqAgent
+    # params:
+      # model: gemma2-9b-it      
+      # model: Llama3-70b-8192  
+    agent: openAIAgent
+    params:
+      # model: gpt-4o
+      model: gpt-4o-mini
+      system: >
+        "あなたはシステム開発会社で活躍して数多くのプロジェクトを成功に導いた
+        大ベテランのプロジェクトマネージャーです。
+        与えられた単語の語源を解説して。
+        英語で考えて、結果は日本語で表示すること。
+        また、マークダウン形式を使用しないでください。
+        "
+    inputs:
+      prompt: ":word"
+    if: :checkInput.continue
+  root:
+    agent: copyAgent
+    # agent: jsonParserAgent
+    # isResult: true
+    inputs:
+      - ":root_llm.choices.$0.message.content"
+
+  # 最終的な出力
+  root_output:
+    agent: stringTemplateAgent
+    # isResult: true
+    params:
+      template: 
+        "
+        \e[32m■ 意味\e[0m: \n ${0} \n\n
+        \e[32m■ 用語を使った例文\e[0m: \n${1} \n\n
+        \e[32m■ 類似語\e[0m: \n ${2} \n\n
+        \e[32m■ コメント（語源とか）\e[0m: \n ${3} \n
+        "
+    console:
+      after: true
+    inputs:
+      - :meaning_jp
+      - :samples
+      - :similar
+      - :root
+      - :wikipediaNode
+
+  # Wikipediaノード
+  wikipediaNode:
+    agent: "mapAgent"
+    inputs: 
+      rows: [:word]
+    if: :checkInput.continue
+    graph:
+      version: 0.5
+      nodes:
+        prompt_topic:
+          agent: stringTemplateAgent
+          params:
+            template: > 
+              「${0}」について日本語で回答してください。
+          inputs: [:row]
+        prompt_query:
+          agent: stringTemplateAgent
+          params:
+            template: > 
+              「${0}」について教えてください。
+          inputs: [:row] 
+        wikipedia:
+          console:
+            after: ...fetching data from wikkpedia
+          agent: wikipediaAgent
+          inputs: [:row]
+          params:
+            lang: ja
+        chunks:
+          console:
+            before: ...splitting the article into chunks
+          agent: stringSplitterAgent
+          inputs:
+            text: :wikipedia.content
+        embeddings:
+          console:
+            before: ...fetching embeddings for chunks
+          agent: stringEmbeddingsAgent
+          inputs:
+            - :chunks.contents
+        topicEmbedding:
+          console:
+            before: ...fetching embedding for the topic
+          agent: stringEmbeddingsAgent
+          inputs:
+            - :prompt_topic
+        similarityCheck:
+          agent: dotProductAgent
+          inputs:
+            matrix: :embeddings
+            vector: :topicEmbedding.$0
+        sortedChunks:
+          agent: sortByValuesAgent
+          inputs:
+            array: :chunks.contents
+            values: :similarityCheck
+        referenceText:
+          agent: tokenBoundStringsAgent
+          inputs:
+            chunks: :sortedChunks
+          params:
+            limit: 5000
+        prompt:
+          agent: stringTemplateAgent
+          inputs:
+            - :prompt_query
+            - :referenceText.content
+          params:
+            template: |-
+              Using the following document, ${0}
+              ${1}
+       
+        #Ragの結果をAIにまとめてもらうクエリ実行
+        RagQuery:
+          console:
+            before: ...performing the RAG query
+          # agent: groqAgent
+          # params:
+          #   model: Llama3-70b-8192
+          agent: openAIAgent
+          params:
+            # model: gpt-4o
+            model: gpt-4o-mini    
+            sytem: >
+              "
+              あなたは文章要約のプロフェッショナルです。
+              英語で考えて、結果は日本語で表示すること。
+              絶対にマークダウン形式を使わないでください。
+              "
+          inputs:
+            prompt: :prompt
+        
+        # 結果出力（isResulet:trueのためにCopyAgent使っている）
+        RagResult:
+          agent: copyAgent
+          inputs:
+            - :RagQuery.choices.$0.message.content
+          # isResult: true
+        
+        AllResult_output:
+          agent: stringTemplateAgent
+          params:
+            template: "\e[32m回答\e[0m: \n \e[32m■ Wikipedia(${1})\e[0m:\n${0} \n"
+          console:
+            after: true
+          inputs:
+            - :RagResult
+            - :RagQuery.model
+            - :prompt
+      
+      
