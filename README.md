@@ -112,7 +112,7 @@ interview_SE.yaml を実行する場合は以下のコマンド実施。<br>
 ソース修正後、都度以下コマンドを実行すればすぐに動作する（コンパイルなどは不要）。
 
 ```
-graphai do/interview_SE.yaml
+graphai src/interview_SE.yaml
 ```
 
 ## 5. ログ
