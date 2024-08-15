@@ -19,7 +19,7 @@ nodes:
         llm:
           agent: openAIAgent
           params:
-            model: gpt-4o
+            model: gpt-4o-mini
           inputs:
             prompt: :prompt
         result:

@@ -1,3 +1,11 @@
+```mermaid
+flowchart LR
+ question --> projectId(projectId)
+ question --> database
+ projectId --> database
+ database[[database]] -- query --> response(response)
+```
+
 # ■私がやりたいこと
 ## :heavy_check_mark: 目標と課題
 ### 目標
