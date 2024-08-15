@@ -16,7 +16,7 @@ nodes:
         identifier:
           agent: openAIAgent
           params:
-            model: gpt-4o
+            model: gpt-4o-mini
             system: >
               You are responsible in identifying the language of the input and translate it into English. 
               Call the 'translated' function with 'language' and 'englishTranslation'. 
@@ -88,7 +88,7 @@ nodes:
           console: 
             before: Summarizing it...
           params:
-            model: gpt-4o
+            model: gpt-4o-mini
             system: Summarize the text below in 200 words
           inputs: 
             prompt: ":wikipedia.content"
@@ -124,7 +124,7 @@ nodes:
           console: 
             before: Translating it...
           params:
-            model: gpt-4o
+            model: gpt-4o-mini
             system: ":nonEnglish"
           inputs: 
             prompt: ":content"

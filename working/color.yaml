@@ -1,0 +1,68 @@
+version: 0.5
+nodes:
+  source:
+    value:
+      fruits: "りんご"
+  # 質問文生成
+  prompt:
+    agent: stringTemplateAgent
+    params:
+      template: 
+        ${0} は一般的に何色ですか？ 色だけを回答してください。回答例）XX色
+    inputs: 
+      - :source.fruits
+    isResult: true
+  # AIに確認
+  llm_color:
+    agent: openAIAgent
+    params:
+      model: gpt-4o-mini
+    inputs:
+      prompt: :prompt
+  # 結果を返す
+  result:
+    agent: copyAgent
+    isResult: true
+    inputs:
+      - ":llm_color.choices.$0.message.content"
+  # AIに確認
+  llm_color_image:
+    agent: openAIAgent
+    params:
+      model: gpt-4o-mini
+      query: 
+        "連想することは何ですか？日本語で50字以内で回答して。"
+    inputs:
+      prompt: ":llm_color.choices.$0.message.content"
+  # 結果表示
+  result2:
+    agent: copyAgent
+    isResult: true
+    inputs:
+      - ":llm_color_image.choices.$0.message.content"
+
+
+  # # 次は色に加えてその理由を確認
+  # prompt_reason:
+  #   agent: stringTemplateAgent
+  #   params:
+  #     template: 
+  #       ${0} は一般的に何色ですか？ 
+  #       色だけとその理由を２００字以内で回答してください。
+  #   inputs: 
+  #     - :source.fruits
+  #   isResult: true
+  # # AIに確認
+  # llm_with_reason:
+  #   agent: openAIAgent
+  #   params:
+  #     model: gpt-4o-mini
+  #   inputs:
+  #     prompt: :prompt_reason
+  # # 結果表示
+  # result_reson:
+  #   agent: copyAgent
+  #   inputs: 
+  #     - :llm_with_reason.choices.$0.message.content
+  #   isResult: true
+    

@@ -2,7 +2,7 @@ version: 0.5
 nodes:
   source:
     value:
-      fruits: [apple,lemomn,banana]
+      fruits: [りんご,れもん,キウイ]
   map:
     agent: mapAgent
     inputs:
@@ -13,7 +13,10 @@ nodes:
         prompt:
           agent: stringTemplateAgent
           params:
-            template: What is the typical color of ${0}? Just answer the color. in japanese.
+            template: 
+              ${0} は一般的に何色ですか？ 
+              色だけを回答してください。
+              回答例）XX色
           inputs: [:row]
           isResult: true
         llm:
@@ -26,8 +29,6 @@ nodes:
           agent: copyAgent
           inputs: [:llm.choices.$0.message.content]
           isResult: true
-          # console:
-          #   after: true
   map_result:
     agent: "bypassAgent"
     inputs: [":map.result"]

@@ -1,10 +1,3 @@
-```mermaid
-flowchart LR
- question --> projectId(projectId)
- question --> database
- projectId --> database
- database[[database]] -- query --> response(response)
-```
 
 # ■私がやりたいこと
 ## :heavy_check_mark: 目標と課題
@@ -63,6 +56,59 @@ Replitは、インターネット上で使えるプログラム作成ツール�
 | 友達と一緒に作業     | 他の人と同時にコードを書いたり、相談しながら進められます。             |
 
 
+```yaml
+version: 0.5
+nodes:
+  source:
+    value:
+      fruits: "りんご"
+  # 質問文生成
+  prompt:
+    agent: stringTemplateAgent
+    params:
+      template: 
+        ${0} は一般的に何色ですか？ 色だけを回答してください。回答例）XX色
+    inputs: 
+      - :source.fruits
+    isResult: true
+  # AIに確認
+  llm_color:
+    agent: openAIAgent
+    params:
+      model: gpt-4o-mini
+    inputs:
+      prompt: :prompt
+  # 結果を返す
+  result:
+    agent: copyAgent
+    isResult: true
+    inputs:
+      - ":llm_color.choices.$0.message.content"
+  # AIに確認
+  llm_color_image:
+    agent: openAIAgent
+    params:
+      model: gpt-4o-mini
+      query: 
+        "連想することは何ですか？日本語で50字以内で回答して。"
+    inputs:
+      prompt: ":llm_color.choices.$0.message.content"
+  # 結果表示
+  result2:
+    agent: copyAgent
+    isResult: true
+    inputs:
+      - ":llm_color_image.choices.$0.message.content"
+```
+
+```mermaid
+flowchart TD
+ source(source) -- fruits --> prompt
+ prompt(prompt) --> llm_color
+ llm_color(llm_color) -- choices.$0.message.content --> result
+ llm_color(llm_color) -- choices.$0.message.content --> llm_color_image
+ llm_color_image(llm_color_image) -- choices.$0.message.content --> result2
+```
 
 ## 無料アカウントを作成
 https://replit.com/login
