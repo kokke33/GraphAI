@@ -1,42 +1,62 @@
 version: 0.5
-loop:
-  while: :continue
 nodes:
-  continue:
-    value: true
-    update: :checkInput.continue
-
-  userInput_name:
-    agent: textInputAgent
+  wikipedia:
+    agent: wikipediaAgent
+    console: 
+      before: Fetching data from Wikipedia...
     params:
-      message: "トピック:"  
-    console:
-      before: "何について知りたいですか？"
-      
-  checkInput:
-    agent: propertyFilterAgent
-    params:
-      inspect:
-        - propId: continue
-          notEqual: /bye
-    inputs:
-      - {}
-      - :userInput_name      
-  
-  prompt_topic:
-    agent: stringTemplateAgent
-    params:
-      template: > 
-        「${0}」について日本語で回答してください。
+      lang: en
     inputs: 
-      - :userInput_name
-  prompt_query:
-    agent: stringTemplateAgent
+      - "明治天皇"
+  summary:
+    agent: openAIAgent
+    console: 
+      before: Summarizing it...
     params:
-      template: > 
-        「${0}」について教えてください。
+      model: gpt-4o-mini
+      system: Summarize the text below in 200 words in japanese.
     inputs: 
-      - :userInput_name        
-      
-
-  
+      prompt: ":wikipedia.content"
+  result:
+    agent: copyAgent
+    isResult: true
+    inputs: 
+      - ":summary.choices.$0.message.content"
+  # wikipedia:
+  #   console:
+  #     after: ...fetching data from wikkpedia
+  #   agent: wikipediaAgent
+  #   inputs:
+  #     - "明治天皇"
+  #   params:
+  #     lang: ja
+  # Result:
+  #   agent: copyAgent
+  #   inputs:
+  #     - ":wikipedia.content"
+  # llm:
+  #   agent: openAIAgent
+  #   params:
+  #     model: gpt-4o-mini
+  #     prompt: "200字程度に要約して"
+  #   inputs:
+  #     prompt: :Result
+  # Result2:
+  #   agent: copyAgent
+  #   inputs:
+  #     - ":llm.choices.$0.message.content"
+  #   isResult: true
+    
+  # # Result2:
+  # #   agent: stringTemplateAgent
+  # #   params:
+  # #     template: "${0}"
+  # #   inputs: 
+  # #     - :wikipedia.content
+  #   # unless: ":lang_info.isEnglish"
+  #   # isResult: true
+  # # Result:
+  # #   agent: copyAgent
+  # #   inputs:
+  # #     - :wikipedia.content
+  # #   isResult: true

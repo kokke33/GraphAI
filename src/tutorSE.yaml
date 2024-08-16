@@ -107,7 +107,7 @@ nodes:
       - ":similar_llm.choices.$0.message.content"
 
   # 補足説明
-  root_llm:
+  Supplementary_llm:
     # agent: groqAgent
     # params:
       # model: gemma2-9b-it      
@@ -126,15 +126,15 @@ nodes:
     inputs:
       prompt: ":word"
     if: :checkInput.continue
-  root:
+  Supplementary:
     agent: copyAgent
     # agent: jsonParserAgent
     # isResult: true
     inputs:
-      - ":root_llm.choices.$0.message.content"
+      - ":Supplementary_llm.choices.$0.message.content"
 
   # 最終的な出力
-  root_output:
+  Supplementary_output:
     agent: stringTemplateAgent
     # isResult: true
     params:
@@ -151,14 +151,16 @@ nodes:
       - :meaning_jp
       - :samples
       - :similar
-      - :root
+      - :Supplementary
       - :wikipediaNode
 
   # Wikipediaノード
   wikipediaNode:
-    agent: "mapAgent"
+    agent: "nestedAgent"
+    # agent: "mapAgent"
     inputs: 
-      rows: [:word]
+      # rows: [:word]
+      contents: ":word"
     if: :checkInput.continue
     graph:
       version: 0.5
@@ -168,18 +170,21 @@ nodes:
           params:
             template: > 
               「${0}」について日本語で回答してください。
-          inputs: [:row]
+          # inputs: [:row]
+          inputs: [:contents]
         prompt_query:
           agent: stringTemplateAgent
           params:
             template: > 
               「${0}」について教えてください。
-          inputs: [:row] 
+          # inputs: [:row] 
+          inputs: [:contents] 
         wikipedia:
           console:
             after: ...fetching data from wikkpedia
           agent: wikipediaAgent
-          inputs: [:row]
+          # inputs: [:row]
+          inputs: [:contents]
           params:
             lang: ja
         chunks:
@@ -242,6 +247,7 @@ nodes:
               あなたは文章要約のプロフェッショナルです。
               英語で考えて、結果は日本語で表示すること。
               絶対にマークダウン形式を使わないでください。
+              ４００字程度に要約すること。
               "
           inputs:
             prompt: :prompt
