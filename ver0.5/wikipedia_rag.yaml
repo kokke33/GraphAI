@@ -2,17 +2,16 @@ version: 0.5
 loop:
   while: :continue
 nodes:
-  continue:
-    value: true
-    update: :checkInput.continue
-
   userInput_name:
     agent: textInputAgent
     params:
       message: "トピック:"  
     console:
       before: "何について知りたいですか？"
-      
+  continue:
+    value: true
+    update: :checkInput.continue
+
   checkInput:
     agent: propertyFilterAgent
     params:
@@ -36,10 +35,10 @@ nodes:
         「${0}」について教えてください。
     inputs: 
       - :userInput_name        
-      
   wikipedia:
     console:
       after: ...fetching data from wikkpedia
+    if: :checkInput.continue
     agent: wikipediaAgent
     inputs:
       - :userInput_name
