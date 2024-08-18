@@ -134,7 +134,7 @@ Create a Repl から `TypeScript` を選択。<br>
 # ■GraphAIのインストールと実行
 
 ## 1. GraphAIのインストール
-右下ウィンドウのTools＞Shell（Ctrl+@） を起動して<br>
+右下ウィンドウの　Tools＞Shell　を起動して<br>
 
 ![alt text](pictures/replit_Shell1.jpg)
 
