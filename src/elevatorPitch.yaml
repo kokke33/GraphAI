@@ -36,14 +36,14 @@ nodes:
             template:
               - role: system
                 content: >
-                  You are an expert in GraphAI. 
-                  Based on the information below, please create an elevator pitch for people who are using GraphAI for the first time.
-                  in japanese.
+                  あなたはベテランのプレゼンターです。 
+                  以下の資料の情報をもとに、初見の人達が理解でき、興味を持ってもらえるような
+                  エレベータピッチを作成してください。
+                  余計な推論などは行わずに連携した資料からのみ情報を収集してください。
                   
-                  [GraphAI Infomation]
+                  [資料]
                   ${0}
           inputs: [":node2"]
-          # inputs: ["これはGraphAIの説明です"]
 
         matomeGeneratorLLM:
           agent: openAIAgent
@@ -52,8 +52,10 @@ nodes:
           params:
             model: gpt-4o-mini
           inputs:
-            # prompt: "300字程度に要約して"
-            prompt: "5分の発表時間を充足するようにエレベータピッチを推敲してください。"
+            prompt: 
+              "10分の発表時間を充足する分量で、エレベータピッチを推敲してください。
+              ステップバイステップで英語で考えてください。
+              回答するのは結果のみでよいですが、日本語で回答してください。"
             messages: ":matome"
           isResult: true
 
@@ -91,7 +93,7 @@ nodes:
     params:
       model: gpt-4o-mini
     inputs:
-      query: "5分の発表時間を充足するようにエレベータピッチを推敲してください。"
+      query: "10分の発表時間を充足するようにエレベータピッチを推敲してください。"
       prompt: ":outputSum"
         
   outputSumOne:
