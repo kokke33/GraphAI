@@ -13,6 +13,7 @@
 :sweat_drops: AIへの興味はあるが、実際の開発に踏み出せず
 - 主な理由
   - プログラミング言語（例: Python）の習得が難しいと感じる
+  - 各種処理を同期・非同期などを考慮して実装するのが大変そう
   - AI関連の情報が膨大で、何から始めればよいか分からない
   - 開発に必要なツールやライブラリのセットアップが複雑で面倒
   - 高性能なハードウェアやクラウドサービスの使用料が高額
@@ -21,6 +22,7 @@
 ## :heavy_check_mark: 解決策と展望
 ### GraphAIの魅力
 - Yaml形式のデータ定義のみでアプリケーション開発が可能
+- データ定義の中で各エージェントのインプットを定義すればあとはGraphAIが最適に実行してくれる
 - プログラミング言語の専門知識不要
 - AIアプリケーション開発の敷居を大幅に低下
 - 昨今AI（LLM-API）の利用料が大幅に下がっている（無料もあり）
@@ -32,9 +34,8 @@
 
 
 # ■GraphAIとは
-[本家のサイト]
-
-　https://github.com/receptron/graphai
+[本家のサイト]　https://github.com/receptron/graphai<br>
+[Youtube]　https://www.youtube.com/watch?v=0mh_Nu9SefQ
 
 > GraphAIは、非同期データフロー実行エンジンで、開発者がYAMLやJSONで宣言的にデータフローグラフを記述することで、エージェントワークフローを構築できるツールです。複数のLLM（大規模言語モデル）呼び出しや非同期API呼び出しを管理し、より高品質な出力を段階的に生成するアプリケーションの開発を可能にします。<br><br>
 GraphAIは、複雑な非同期処理や依存関係管理、並行実行、エラー処理などを自動的に処理します。開発者は、データの流れやエージェント間の依存関係をグラフ形式で記述するだけで、複雑な非同期プログラミングの課題を解決できます。<br><br>
@@ -63,13 +64,13 @@ nodes:
       model: gpt-4o-mini
     inputs:
       prompt: :prompt
-  # 結果を返す
+  # 最初の質問に対する結果を返す
   result:
     agent: copyAgent
     isResult: true
     inputs:
       - ":llm_color.choices.$0.message.content"
-  # AIに確認
+  # 先ほどの結果をうけた次の質問をAIに確認
   llm_color_image:
     agent: openAIAgent
     params:
@@ -78,7 +79,7 @@ nodes:
         "連想することは何ですか？日本語で50字以内で回答して。"
     inputs:
       prompt: ":llm_color.choices.$0.message.content"
-  # 結果表示
+  # 最終的な結果表示
   result2:
     agent: copyAgent
     isResult: true
