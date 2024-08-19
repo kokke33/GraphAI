@@ -1,0 +1,104 @@
+version: 0.5
+nodes:
+  source:
+    value:
+      inputDocumnets: 
+        - "https://raw.githubusercontent.com/receptron/graphai/main/packages/graphai/README.md"
+        - "https://raw.githubusercontent.com/receptron/graphai/main/docs/Tutorial.md"
+        - "https://raw.githubusercontent.com/receptron/graphai/main/docs/Paper.md"
+        
+  nestedNode:
+    agent: "mapAgent"
+    inputs:
+      rows: ":source.inputDocumnets"
+    graph:
+      version: 0.5
+      nodes:
+        fetchDocument:
+          agent: fetchAgent
+          console:
+            before: "...fetching Document"
+          params:
+            type: text
+          inputs:
+            url: [":row"]
+  
+        node2:
+          agent: "stringTemplateAgent"
+          params:
+            template: "${0}"
+          inputs: [":fetchDocument"]
+          isResult: true
+
+        matome:
+          agent: stringTemplateAgent
+          params:
+            template:
+              - role: system
+                content: >
+                  You are an expert in GraphAI. 
+                  Based on the information below, please create an elevator pitch for people who are using GraphAI for the first time.
+                  in japanese.
+                  
+                  [GraphAI Infomation]
+                  ${0}
+          inputs: [":node2"]
+          # inputs: ["これはGraphAIの説明です"]
+
+        matomeGeneratorLLM:
+          agent: openAIAgent
+          console:
+            before: "...generating matome"
+          params:
+            model: gpt-4o-mini
+          inputs:
+            # prompt: "300字程度に要約して"
+            prompt: "5分の発表時間を充足するようにエレベータピッチを推敲してください。"
+            messages: ":matome"
+          isResult: true
+
+        output:
+          agent: "stringTemplateAgent"
+          params:
+            template:
+              - source: 
+                  content: "${0}"
+              - matome:
+                  content: "${1}"
+          inputs: 
+            - ":row"
+            - ":matomeGeneratorLLM.choices.$0.message.content"
+          isResult: true
+        
+  outputSum:
+    agent: "stringTemplateAgent"
+    inputs:
+      - :nestedNode.output.$0.$0.source.content
+      - :nestedNode.output.$0.$1.matome.content
+      - :nestedNode.output.$1.$0.source.content
+      - :nestedNode.output.$1.$1.matome.content
+      - :nestedNode.output.$2.$0.source.content
+      - :nestedNode.output.$2.$1.matome.content
+    params:
+      template: "\e[34m■${0}\e[0m\n${1}\n\n\n\e[34m■${2}\e[0m\n${3}\n\n\n\e[34m■${4}\e[0m\n${5}\n\n\n"
+    console:
+      after: true
+
+  outputSumOneLLM:
+    agent: openAIAgent
+    console:
+      before: "...generating outputSumOne"
+    params:
+      model: gpt-4o-mini
+    inputs:
+      query: "5分の発表時間を充足するようにエレベータピッチを推敲してください。"
+      prompt: ":outputSum"
+        
+  outputSumOne:
+    agent: "stringTemplateAgent"
+    inputs:
+      - :outputSumOneLLM.choices.$0.message.content
+    params:
+      template: "\e[34m■outputSumOne\e[0m\n${0}"
+    console:
+      after: true
