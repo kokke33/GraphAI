@@ -93,7 +93,7 @@ nodes:
     params:
       model: gpt-4o-mini
     inputs:
-      query: "10分の発表時間を充足するようにエレベータピッチを推敲してください。"
+      query: "GraphAIの魅力を10分の発表時間を充足するようにエレベータピッチを推敲してください。"
       prompt: ":outputSum"
         
   outputSumOne:
