@@ -22,10 +22,9 @@
 ## :heavy_check_mark: 解決策と展望
 ### GraphAIの魅力
 - Yaml形式のデータ定義のみでアプリケーション開発が可能
-- データ定義の中で各エージェントのインプットを定義すればあとはGraphAIが最適に実行してくれる
+- 複数の同期・非同期APIコールの管理における複雑さを軽減
 - プログラミング言語の専門知識不要
-- AIアプリケーション開発の敷居を大幅に低下
-- 昨今AI（LLM-API）の利用料が大幅に下がっている（無料もあり）
+
 
 ### 期待
 **プログラミングの専門知識がなくても**、AIを活用したアプリケーション開発に取り組むことができる。
@@ -153,8 +152,8 @@ npm i -g  @receptron/graphai_cli
 OpenAIとGroqの２つのAPIがあればよい。<br>
 取得方法はGoogleで「OpenAI API取得方法」などで検索。<br>
 
-　＜参考＞<br>
-　　https://www.scuti.jp/blog/try-llama3-in-groqs-ultra-fast-environment#:~:text=GroqのAPI%20Key取得,キーを発行できます。
+＜参考＞<br>
+https://www.scuti.jp/blog/try-llama3-in-groqs-ultra-fast-environment#:~:text=GroqのAPI%20Key取得,キーを発行できます。
 
 
 ## 3. `.env`ファイルの設定
@@ -180,7 +179,7 @@ Replitは無料利用の場合、作成したソースは公開されてしま�
 ![alt text](pictures/replit_Secrets1.jpg)
 
 ## 4. 実行方法
-interview_SE.yaml を実行する場合は以下のコマンド実施。<br>
+[interview_SE.yaml](src/interview_SE.yaml)　の中身をコピーして各自の環境に作成。実行する場合は以下のコマンド実施。<br>
 ソース修正後、都度以下コマンドを実行すればすぐに動作する（コンパイルなどは不要）。
 
 ```shell
