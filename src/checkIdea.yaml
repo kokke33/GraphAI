@@ -50,7 +50,7 @@ nodes:
   suggestIdea:
     agent: stringTemplateAgent
     console:
-      before: ...アイデア検討中    
+      before: ...10個のアイデア検討中    
     params:
       template: >
         ベテランのプロジェクトマネージャとして、
