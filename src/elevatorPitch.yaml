@@ -1,3 +1,4 @@
+# インプット情報（URL）をもとにエレベータピッチを作成する
 version: 0.5
 nodes:
   source:

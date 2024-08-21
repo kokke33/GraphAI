@@ -172,14 +172,16 @@ GOOGLE_GENAI_API_KEY=myGoogle
  ```
 ### :heavy_check_mark: LLMのAPIキーは「Secrets」 に登録する
 
-Replitは無料利用の場合、作成したソースは公開されてしまう（Private設定できない）。<br>
-そのためAPIキーはSecretsに登録する必要がある。<br>
+Replitは　`無料利用の場合、作成したソースは公開されてしまう`（Private設定できない）。<br>
+そのため、APIキーは「Secrets」に登録する必要がある。<br>
 
 :+1:ウィンドウ右下の Tools＞Secrets<br>
 ![alt text](pictures/replit_Secrets1.jpg)
 
 ## 4. 実行方法
-[interview_SE.yaml](src/interview_SE.yaml)　の中身をコピーして各自の環境に作成。実行する場合は以下のコマンド実施。<br>
+[interview_SE.yaml](src/interview_SE.yaml)　の中身をコピーして
+各自の環境に作成。実行する場合は以下のコマンド実施。<br>
+※srcフォルダ配下に作った場合<br>
 ソース修正後、都度以下コマンドを実行すればすぐに動作する（コンパイルなどは不要）。
 
 ```shell
