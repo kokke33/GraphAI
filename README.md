@@ -198,7 +198,7 @@ graphai src/interview_SE.yaml
 :warning:大量のログが出ます。
 
 ```shell
-graphai src/interview_SE.yaml -log log/interview_SE.log
+graphai src/interview_SE.yaml --log log/interview_SE.log
 ```
 <br>
 
@@ -225,4 +225,3 @@ LLMの利用において価格を気にする必要がないため、今後は�
 ※srcフォルダ配下<br>
 
 今後は作成したこれらのアプリケーションをWEB化し、多くの人が利用できるようにしていきたい。<br>
-
