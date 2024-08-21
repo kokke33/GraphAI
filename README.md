@@ -107,6 +107,7 @@ flowchart TD
  llm_color_image(llm_color_image) -- choices.$0.message.content --> result2
 ```
 
+<br>
 
 # ■早速開発！
 ## Replitの導入
@@ -216,3 +217,12 @@ LLMの利用において価格を気にする必要がないため、今後は�
 | OpenAI | GPT-4 | $30.00 (¥4,650) | $60.00 (¥9,300) |
 | OpenAI | GPT-3.5 Turbo | $0.50 (¥77.50) | $1.50 (¥232.50) |
 | groq | Llama3-70b-8192 | 無料 | 無料 |
+
+<br>
+
+# 今後に向けて
+今回GraphAIを使った各種アプリケーションをいくつか作成した。<br>
+※srcフォルダ配下<br>
+
+今後は作成したこれらのアプリケーションをWEB化し、多くの人が利用できるようにしていきたい。<br>
+
