@@ -41,4 +41,8 @@ AI を活用する上で、ユーザーが最初に直面する課題は
 
 
 # 動作の様子
-![alt text](pictures/makePromt.gif)
+## makePromt
+![makePromt](pictures/makePrompt.gif)
+
+## checkIdea
+![checkIdea](pictures/checkIdea.gif)
