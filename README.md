@@ -34,12 +34,13 @@
 
 # ■GraphAIとは
 [本家のサイト]　https://github.com/receptron/graphai<br>
+[紹介サイト]　https://zenn.dev/singularity/articles/graphai-about<br>
 [Youtube]　https://www.youtube.com/watch?v=0mh_Nu9SefQ
 
 > GraphAIは、非同期データフロー実行エンジンであり、プログラミングの専門知識がない方 でも簡単にAIアプリケーションを作成できるオープンソースのツールです。<br><br>
 多くの人がAIを活用したいと思っても、プログラミングの壁に直面し、諦めてしまうことが多いです。しかし、GraphAIを使えば、その壁を越えることができます。データフローをYAMLやJSONで宣言的に記述することで、視覚的に理解しやすく、誰でも扱いやすい設計になっています。<br><br>
 例えば、果物の色を取得し、それを基に特定の質問に対する回答を生成するアプリケーションを考えてみましょう。
-このプロセスでは、データを取得し、解析し、最終的な回答を生成する一連のステップがありますが、GraphAIがこのすべてを自動的に管理し、非同期で実行してくれます。<br><br>
+このプロセスでは、データを取得し、解析し、最終的な回答を生成する一連のステップがありますが、GraphAIがこのすべてを自動的に管理し、実行してくれます。<br><br>
 さらに、GraphAIは複数のAPI呼び出しを同時に行えるため、パフォーマンスが向上し、迅速に高品質な出力を得ることができます。エラー処理やリトライの管理もGraphAIが行うため、開発者はビジネスロジックに集中できます。
 GraphAIを使うことで、複雑なデータ依存性の管理が容易になり、従来のプログラミングスタイルでは難しかった並行プログラミングをシンプルに実現します。これにより、開発者はより効率的に、柔軟にアプリケーションを構築できるようになります。
 
@@ -146,11 +147,24 @@ Create a Repl から `TypeScript` を選択。<br>
 
 ![alt text](pictures/replit_Shell1.jpg)
 
-以下のコマンドを実行するだけ
+以下のコマンドを実行する。
 
 ```shell
 npm i -g  @receptron/graphai_cli
 ```
+
+インストール後、`graphai` を実行し結果が出ればインストールOK。
+```
+~/GraphAI$ graphai 
+graphai <yaml_or_json_file>
+
+run GraphAI with GraphAI file.
+
+Positionals:
+  yaml_or_json_file  yaml or json file                                  [string]
+  ：
+```
+
 
 ## 2. LLMのAPIキーを取得する
 各LLM（OpenAIとかGroqとか）のAPIキーを設定する。<br>

@@ -120,7 +120,8 @@ nodes:
         # ★★★「最後に本会話は終了させてください」が重要。そうしないと会話続けてしまってエラーとなる
         # "An assistant message with 'tool_calls' must be followed by tool messages responding to each 'tool_call_id'.
         # ↑後で分かったことだが「LLMの回答（Contents）とtool_call回答の両方が入る」ことがある。その場合に上記エラーとなる。
-        # 対策として、ループ判定を「:llm.choices.$0.message.content」⇒「loopCheck」の通りに修正した
+        # 会話完了してtool_call呼び出したと思いきや、LLMの回答も入っている状態（例えば「完了しました。ひきつづき～」みたいな）
+        # 対策として、最初のループ判定を「:llm.choices.$0.message.content」から「loopCheck」に変更した。
         meaning_llm:
           # agent: groqAgent
           # params:
@@ -146,8 +147,8 @@ nodes:
           if: :llm.choices.$0.message.tool_calls
           # if: :meaning_llm.choices.$0.message.content
 
-        # llmのfinish_reasonを確認。tool_calls以外は「stop」となる。
-        # よって、stopの時にループする
+        # llmのfinish_reasonを確認。tool_calls以外はfinish_reasonは「stop」となる。
+        # よって、stopの時にループするようにする
         loopCheck:
           agent: propertyFilterAgent
           params:
