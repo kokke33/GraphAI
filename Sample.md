@@ -31,13 +31,21 @@ AI を活用する上で、ユーザーが最初に直面する課題は
 - 選出した3つのアイデアを1つの文章にまとめます。
 - さらに議論を深堀りするための質問を5つ作成します。
 
+## ③AIに質問と回答を会話させて傍から眺める（interview_SE.yaml）
+① で作成した質問文に対して、AI 同士で会話させます。で、それを眺めます（笑）
+
+- 質問を受け付けます。
+- 相談者とベテランのプロジェクトマネージャの役割でそれぞれ７ターン会話します。
+- 会話の内容を1つの文章にまとめます。
+- さらに議論を深堀りするための質問を5つ作成します。
 
 # :abcd:成果物
 
-|ソース| 説明|
-|----------------------|----------------------------------------------------------------------|
-| [makePromt.yaml](src/makePrompt.yaml)|AIに質問する「質問文」をAIと一緒に作成する|
-| [checkIdea.yaml](src/checkIdea.yaml)|①作成した質問文に対してアイデアを10個作成。<br>②AIが3つに絞り込み<br>③それらを1つの文章にまとめる。<br>④深堀する質問を5つ作成する。|
+|ソース|
+|----------------------|
+| [makePromt.yaml](src/makePrompt.yaml)|
+| [checkIdea.yaml](src/checkIdea.yaml)|
+| [interview_SE.yaml](src/interview_SE.yaml)|
 
 
 # 動作の様子
@@ -46,3 +54,6 @@ AI を活用する上で、ユーザーが最初に直面する課題は
 
 ## checkIdea
 ![checkIdea](pictures/checkIdea.gif)
+
+## interview_SE
+![interview_SE](pictures/interview_SE.gif)
