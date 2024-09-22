@@ -10,10 +10,10 @@ nodes:
   userInput:
     agent: textInputAgent
     params:
-      message: "相談内容:"  
+      message: "あなた:"  
     console:
       before:
-        "\n\e[1;32m■相談内容を教えてください\e[0m"
+        "\e[32mAI\e[0m: ■悩んでいること、相談したいことを教えてください"
   # 入力が「/bye」以外なら変数continueをtrueにする
   checkInput:
     agent: propertyFilterAgent

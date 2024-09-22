@@ -12,9 +12,9 @@ nodes:
   userInput:
     agent: textInputAgent
     params:
-      message: "悩める社員:"  
+      message: "あなた:"  
     console:
-      before: "\e[1;32m■悩んでいること、相談したいことを教えてください:\e[0m"
+      before: "\e[32mAI\e[0m: ■悩んでいること、相談したいことを教えてください"
   # 入力が「/bye」以外なら変数continueをtrueにする
   checkInput:
     agent: propertyFilterAgent

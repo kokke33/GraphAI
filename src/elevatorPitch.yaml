@@ -5,8 +5,8 @@ nodes:
     value:
       inputDocumnets: 
         - "https://raw.githubusercontent.com/receptron/graphai/main/packages/graphai/README.md"
-        - "https://raw.githubusercontent.com/receptron/graphai/main/docs/Tutorial.md"
-        - "https://raw.githubusercontent.com/receptron/graphai/main/docs/Paper.md"
+        # - "https://raw.githubusercontent.com/receptron/graphai/main/docs/Tutorial.md"
+        # - "https://raw.githubusercontent.com/receptron/graphai/main/docs/Paper.md"
         
   nestedNode:
     agent: "mapAgent"

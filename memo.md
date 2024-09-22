@@ -1,0 +1,3 @@
+```
+node interview.js
+```
