@@ -129,19 +129,19 @@ nodes:
           value: {}
           update: :swappedContext
         llm:
-          # agent: openAIAgent
-          # params:
-            # model: gpt-4o-mini
+          agent: openAIAgent
+          params:
+            model: gpt-4o-mini
             # model: gpt-4o
             # model: gpt-3.5-turbo
           # agent: geminiAgent
             # model: gemini-1.5-pro
-          agent: groqAgent
-          params:
+          # agent: groqAgent
+          # params:
             # model: llama-3.1-70b-versatile
             # model: llama-3.1-405b-reasoning
             # model: llama3-groq-70b-8192-tool-use-preview
-            model: Llama3-70b-8192
+            # model: Llama3-70b-8192
             # model: gemma2-9b-it
             # model: Llama3-8b-8192
           inputs:
@@ -149,7 +149,7 @@ nodes:
         output:
           agent: stringTemplateAgent
           params:
-            template: "\e[34m>${1}:【${2}】\e[0m\n${0}\n"
+            template: "\e[34m${1}:【${2}】\e[0m\n${0}\n"
           console:
             after: true
           inputs:
